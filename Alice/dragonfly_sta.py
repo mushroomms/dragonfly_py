@@ -650,20 +650,20 @@ def handshake():
     total_cpucycle = initiate_cpucycle + commit_cpucycle + compute_cpucycle + confirm_cpucycle
 
     # Writing PMK.key into file
-    f = open("PMK.key", "wb")
+    f = open("pmk.key", "wb")
     f.write(PMK_Key)
     f.close()
 
-    print("\nRTT MAC address:", rtt_mac_address, "ms")
-    print("RTT scalar & element:", rtt_scalar_element, "ms")
-    print("RTT token:", rtt_token, "ms")
+    print("\n[AP] RTT MAC address:", rtt_mac_address, "ms")
+    print("[AP] RTT scalar & element:", rtt_scalar_element, "ms")
+    print("[AP] RTT token:", rtt_token, "ms")
 
-    print("\nWALL TIME for Dragonfly Key Exchange (Role: AP): " + str(total_wall_time))
-    print("CPU TIME for Dragonfly Key Exhcange (Role: AP): " + str(total_cpu_time))
-    print("CPU Cycles for Dragonfly Exchange (Role: AP): " + str(total_cpucycle))
+    print("\n[AP] WALL TIME for Dragonfly Key Exchange: " + str(total_wall_time) + " ms")
+    print("[AP] CPU TIME for Dragonfly Key Exhcange: " + str(total_cpu_time) + " ms")
+    print("[AP] CPU Cycles for Dragonfly Exchange: " + str(total_cpucycle) + " ms")
 
     print()
-    os.system("md5sum PMK.key")    
+    os.system("md5sum pmk.key")    
     print()
 
     with open('timings.txt', 'w') as z:

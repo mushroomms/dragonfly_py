@@ -48,10 +48,14 @@ ip_address = "192.168.10.1"
 #output hostname, domain name, ip address
 print ("[SOCK] Working on %s (%s) with %s" % (local_hostname, local_fqdn, ip_address))
 
+server_port:str = sys.argv[1]
+server_name:str = sys.argv[2]
+
 #bind socket to port
-server_address = ('192.168.10.1', 4380)
+server_address = ('192.168.10.1', int(server_port))
 
 print ("[SOCK] Starting up on %s port %s" % server_address)
+print ("[SOCK] Listening for %s machine" % server_name)
 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 sock.bind(server_address)
 
@@ -652,20 +656,21 @@ def handshake():
     total_cpucycle = initiate_cpucycle + commit_cpucycle + compute_cpucycle + confirm_cpucycle
 
     # Writing PMK.key into file
-    f = open("PMK.key", "wb")
+    pmk_filename = server_name + "_pmk.key"
+    f = open(pmk_filename, "wb")
     f.write(PMK_Key)
     f.close()
 
-    print("\nTime taken to send MAC address:", time_taken_mac_address, "ms")
-    print("Time taken to send Scalar & Element:", time_scalar_element, "ms")
-    print("Time taken to send token:", time_taken_token, "ms")
+    print("\n[STA] Time taken to send MAC address:", time_taken_mac_address, "ms")
+    print("[STA] Time taken to send Scalar & Element:", time_scalar_element, "ms")
+    print("[STA] Time taken to send token:", time_taken_token, "ms")
 
-    print("\nWALL TIME for Dragonfly Key Exchange (Role: STA): " + str(total_wall_time))
-    print("CPU TIME for Dragonfly Key Exhcange (Role: STA): " + str(total_cpu_time))
-    print("CPU Cycles for Dragonfly Exchange (Role: STA): " + str(total_cpucycle))
+    print("\n[STA] WALL TIME for Dragonfly Key Exchange: " + str(total_wall_time) + " ms")
+    print("[STA] CPU TIME for Dragonfly Key Exhcange: " + str(total_cpu_time) + " ms")
+    print("[STA] CPU Cycles for Dragonfly Exchange: " + str(total_cpucycle) + " ms")
 
     print()
-    os.system("md5sum PMK.key")    
+    os.system("md5sum " + pmk_filename)    
     print()         
 
 if __name__ == '__main__':

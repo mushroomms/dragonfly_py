@@ -27,6 +27,27 @@ import sys
 import math
 from hwcounter import Timer, count, count_end
 
+# Print the help message
+help_message = """
+This script takes two command-line arguments:
+1. <server_ip>: The ip address of the server to initate dragonfly with.
+2. <peer_name>: The port number of the server to initate dragonfly with.
+
+Example usage:
+python3 dragonfly_sta.py 10.0.0.1 8888
+
+Make sure to provide both arguments when running the script.
+"""
+
+# Check if the correct number of arguments is provided
+if len(sys.argv) != 3:
+    print("Usage: python3 dragonfly_sta.py <server_ip> <server_port>")
+    print(help_message)
+    sys.exit(1)
+
+server_ip_address:str = sys.argv[1]
+server_port:str = sys.argv[2]
+
 #Compile asn1 file for secret_key
 asn1_file = asn1tools.compile_files('declaration.asn')
 
@@ -44,9 +65,6 @@ ip_address = "192.168.10.1"
 
 #output hostname, domain name, ip address
 print ("[SOCK] Connecting to %s (%s) with %s" % (local_hostname, local_fqdn, ip_address))
-
-server_ip_address:str = sys.argv[1]
-server_port:str = sys.argv[2]
 
 #bind socket to port
 server_address = (server_ip_address, int(server_port))

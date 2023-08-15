@@ -25,6 +25,7 @@ from collections import namedtuple
 import asn1tools
 import sys
 import math
+from hwcounter import Timer, count, count_end
 
 #Compile asn1 file for secret_key
 asn1_file = asn1tools.compile_files('declaration.asn')
@@ -544,13 +545,16 @@ def handshake():
     own_mac = (':'.join(re.findall('..', '%012x' % uuid.getnode())))
     
     #Encode MAC address with BER
+    send_mac_address = time.time() # Time before sending MAC address
     own_mac_BER = asn1_file.encode('DataMac', {'data': own_mac})
+    
     sock.send(own_mac_BER)
     raw_other_mac = sock.recv(1024)
 
     #decode BER and get mac address
     other_decode_mac = asn1_file.decode('DataMac', raw_other_mac)
     other_mac = other_decode_mac.get('data')
+    rtt_mac_address = (time.time() - send_mac_address) * 1000 # RTT time of sending and receiving MAC address
 
     print("[DRGN} Own MAC Address:", own_mac)
     print("[DRGN] Peer MAC Address:", other_mac)
@@ -558,15 +562,29 @@ def handshake():
     print('[DRGN] Starting hunting and pecking to derive PE...')
     start_dragonfly = time.perf_counter()
     sta = Peer('abc1238', own_mac, 'STA')
+
+    start_initiate = time.time() #start time of initiate
+    process_initiate_start_time = time.process_time() #start cpu time of initiate
+    start_initiate_cpucycle = count()
     sta.initiate(other_mac)
+    initiate_cpucycle = count_end() - start_initiate_cpucycle
+    initiate_wall_time = (time.time() - start_initiate) * 1000 #final time for initiate wall
+    initiate_cpu_time = (time.process_time() - process_initiate_start_time) * 1000 #final time for initiate cpu
 
     print()
     print("========== Dragonfly Commit Exchange =========")
 
-    scalar_sta, element_sta = sta.commit_exchange()
+    start_commit = time.time() #start commit wall time 
+    process_commit_start = time.process_time() #start commit cpu time 
+    start_commit_cpucycle = count()
+    scalar_sta, element_sta = sta.commit_exchange() 
+    commit_cpucycle = count_end() - start_commit_cpucycle
+    commit_cpu_time = (time.process_time() - process_commit_start) * 1000 #final commit cpu time
+    commit_wall_time = (time.time() - start_commit) * 1000 #final commit wall time
 
     #Send BER encoded Scalar / element ap to peer
     scalar_complete = ("\n".join([str(scalar_sta), str(element_sta)]))
+    send_scalar_element = time.time() # Time before sending Scalar Element
     scalar_element_BER = asn1_file.encode('DataScalarElement',{'data':scalar_complete})
     sock.sendall(scalar_element_BER)
 
@@ -574,6 +592,7 @@ def handshake():
     scalar_element_ap_BER = sock.recv(1024)
     scalar_element_ap_decoded = asn1_file.decode('DataScalarElement', scalar_element_ap_BER)
     scalar_element_ap = scalar_element_ap_decoded.get('data')
+    rtt_scalar_element = (time.time() - send_scalar_element) * 1000 # RTT of sending and receiving scalar element
 
     # scalar_element_ap = sock.recv(1024).decode()
     print("[DRGN] Scalar and Element Received from AP")
@@ -584,14 +603,23 @@ def handshake():
     element_ap = data[1]
     print ('[DRGN] AP Scalar:',scalar_ap)
     print ('[DRGN] AP Element:',element_ap)
+    print()
     
     print('[DRGN] Computing shared secret...\n')
     namedtuple_element_ap = eval(element_ap)
+
+    start_compute = time.time()
+    process_start_compute = time.process_time()
+    start_compute_cpucycle = count()
     sta_token = sta.compute_shared_secret(namedtuple_element_ap, int(scalar_ap), other_mac)
+    compute_cpucycle = count_end() - start_compute_cpucycle
+    compute_wall_time = (time.time() - start_compute) * 1000 #final compute wall time 
+    compute_cpu_time = (time.process_time() - process_start_compute) * 1000 #final compute cpu time
 
     print()
     print("========== Dragonfly Confirm Exchange ==========")
     #Encode sta_token to be BER encoded and send to peer
+    sending_token = time.time()
     staToken_encoded = asn1_file.encode('DataStaAp',{'data':sta_token})
     sock.send(staToken_encoded)
 
@@ -601,18 +629,38 @@ def handshake():
     apToken_encoded = sock.recv(1024)
     apToken_decoded = asn1_file.decode('DataStaAp', apToken_encoded)
     ap_token = apToken_decoded.get('data')
+    rtt_token = (time.time() - sending_token) * 1000 # RTT for sending and receiving token
 
     print('[DRGN] Received AP Token:', ap_token)
 
+    start_confirm = time.time()
+    process_start_confirm = time.process_time()
+    start_confirm_cpucycle = count()
     PMK_Key = sta.confirm_exchange(ap_token)
+    confirm_cpucycle = count_end() - start_confirm_cpucycle
+    confirm_wall_time = time.time() - start_confirm #final confirm wall time 
+    confirm_cpu_time = time.process_time() - process_start_confirm #final confirm cpu time
+    
     end_dragonfly = time.perf_counter()
     dragonfly_time = (end_dragonfly - start_dragonfly) * 1000
     dragonfly_time = round(dragonfly_time, -int(math.floor(math.log10(abs(dragonfly_time))))+4)
-   
+
+    total_wall_time = initiate_wall_time + commit_wall_time + compute_wall_time + confirm_wall_time
+    total_cpu_time = initiate_cpu_time + commit_cpu_time + compute_cpu_time + confirm_cpu_time
+    total_cpucycle = initiate_cpucycle + commit_cpucycle + compute_cpucycle + confirm_cpucycle
+
     # Writing PMK.key into file
     f = open("PMK.key", "wb")
     f.write(PMK_Key)
     f.close()
+
+    print("\nRTT MAC address:", rtt_mac_address, "ms")
+    print("RTT scalar & element:", rtt_scalar_element, "ms")
+    print("RTT token:", rtt_token, "ms")
+
+    print("\nWALL TIME for Dragonfly Key Exchange (Role: AP): " + str(total_wall_time))
+    print("CPU TIME for Dragonfly Key Exhcange (Role: AP): " + str(total_cpu_time))
+    print("CPU Cycles for Dragonfly Exchange (Role: AP): " + str(total_cpucycle))
 
     print()
     os.system("md5sum PMK.key")    

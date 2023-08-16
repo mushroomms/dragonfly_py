@@ -678,7 +678,7 @@ def handshake():
 
     print("\n[AP] WALL TIME for Dragonfly Key Exchange: " + str(total_wall_time) + " ms")
     print("[AP] CPU TIME for Dragonfly Key Exhcange: " + str(total_cpu_time) + " ms")
-    print("[AP] CPU Cycles for Dragonfly Exchange: " + str(total_cpucycle) + " ms")
+    print("[AP] CPU Cycles for Dragonfly Exchange: " + str(total_cpucycle))
 
     print()
     os.system("md5sum pmk.key")    
